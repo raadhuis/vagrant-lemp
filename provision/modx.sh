@@ -23,16 +23,10 @@ server {
   root /var/www/;
   index index.php index.html index.htm;
 
-  # Make site accessible from http://localhost/
+  # Make site accessible from http://localhost:8080/
   server_name _;
 
-  location / {
-    # First attempt to serve request as file, then
-    # as directory, then fall back to index.html
-    try_files $uri $uri/ /index.html;
-  }
   # redirect server error pages to the static page /50x.html
-  #
   error_page 500 502 503 504 /50x.html;
   location = /50x.html {
     root /usr/share/nginx/html;
@@ -44,15 +38,15 @@ server {
                   rewrite ^/(.*)$ /index.php?q=$1 last;
           }
   }
+
+  # pass the PHP scripts to FastCGI server listening on /tmp/php5-fpm.sock
+  #
   location ~ \.php$ {
-          try_files $uri =404;
-          fastcgi_split_path_info ^(.+\.php)(.*)$;
-          fastcgi_pass   127.0.0.1:9000;
-          fastcgi_index  index.php;
-          fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
-          include fastcgi_params;
-          fastcgi_ignore_client_abort on;
-          fastcgi_param  SERVER_NAME $http_host;
+    try_files $uri =404;
+    fastcgi_split_path_info ^(.+\.php)(/.+)$;
+    fastcgi_pass unix:/var/run/php5-fpm.sock;
+    fastcgi_index index.php;
+    include fastcgi_params;
   }
 
   location ~ /\.ht {
@@ -61,17 +55,13 @@ server {
 }
 EOF
 
-sudo touch /usr/share/nginx/html/info.php
-sudo cat >> /usr/share/nginx/html/info.php <<'EOF'
+sudo touch /var/www/info.php
+sudo cat >> /var/www/info.php <<'EOF'
 <?php phpinfo(); ?>
 EOF
 
 echo ">>> Installing base packages"
 sudo apt-get install  -q -y -f vim curl python-software-properties unzip git-all
-
-sudo service nginx restart
-
-sudo service php5-fpm restart
 
 sudo locale-gen UTF-8
 sudo dpkg-reconfigure locales
@@ -96,3 +86,7 @@ cd Gitify
 composer install
 chmod +x Gitify
 export PATH=~/Gitify/:$PATH
+
+sudo service nginx restart
+
+sudo service php5-fpm restart
