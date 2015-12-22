@@ -4,3 +4,4 @@ VagrantBK
 .tmp/
 .ruby-gemset
 .ruby-version
+public

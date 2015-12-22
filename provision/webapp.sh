@@ -96,8 +96,6 @@ sudo cat >> /usr/share/nginx/html/info.php <<'EOF'
 <?php phpinfo(); ?>
 EOF
 
-sudo aptitude install -q -y -f phpmyadmin
-
 sudo service nginx restart
 
 sudo service php5-fpm restart
