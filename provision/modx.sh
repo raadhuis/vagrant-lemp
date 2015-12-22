@@ -3,20 +3,39 @@ export DEBIAN_FRONTEND=noninteractive
 
 sudo aptitude update -q
 
-# Force a blank root password for mysql
-echo "mysql-server mysql-server/root_password password root" | debconf-set-selections
-echo "mysql-server mysql-server/root_password_again password root" | debconf-set-selections
 
-# Install mysql, nginx, php5-fpm
-sudo aptitude install -y mysql-server-5.5 nginx php5-fpm
+echo "========= Updating OS in Prep For Provision ========="
+sudo apt-get update
+
+
+echo "========= Installing python-sofware-properties ========="
+sudo apt-get install -y python-software-properties build-essential
+
+
+echo "========= Adding Nginx Webserver ========="
+sudo add-apt-repository ppa:nginx/development
+sudo apt-get update
+sudo apt-get install -y nginx
+
+
+echo "========= Adding PHP ========="
+sudo add-apt-repository -y ppa:ondrej/php5-5.6
+sudo apt-get update
+sudo apt-get install -y php5-fpm php5-cli php5-mcrypt php5-mysql php5-curl
+sudo apt-get update
+sudo service nginx restart
+sudo service php5-fpm restart
+
+echo "========= Adding MySQL ========="
+sudo debconf-set-selections <<< "mysql-server mysql-server/root_password password root"
+sudo debconf-set-selections <<< "mysql-server mysql-server/root_password_again password root"
+sudo apt-get install -y mysql-server
+sudo apt-get install -y mysql-client
 
 echo "CREATE USER 'root'@'localhost' IDENTIFIED BY 'root'" | mysql -uroot -proot
 echo "CREATE DATABASE modx" | mysql -uroot -proot
 echo "GRANT ALL ON modx.* TO 'root'@'localhost'" | mysql -uroot -proot
 echo "flush privileges" | mysql -uroot -proot
-
-# Install commonly used php packages
-sudo aptitude install -q -y -f php5-mysql php5-curl php5-gd php5-intl php-pear php5-imagick php5-imap php5-mcrypt php5-memcached php5-ming php5-ps php5-pspell php5-recode php5-snmp php5-sqlite php5-tidy php5-xmlrpc php5-xsl php5-xcache
 
 sudo rm /etc/nginx/sites-available/default
 sudo touch /etc/nginx/sites-available/default
@@ -44,13 +63,13 @@ server {
           }
   }
 
-  # pass the PHP scripts to FastCGI server listening on /tmp/php5-fpm.sock
-  #
+  # pass the PHP scripts to FastCGI server listening on /var/run/php5-fpm.sock
   location ~ \.php$ {
     try_files $uri =404;
     fastcgi_split_path_info ^(.+\.php)(/.+)$;
     fastcgi_pass unix:/var/run/php5-fpm.sock;
     fastcgi_index index.php;
+    fastcgi_read_timeout 150;
     include fastcgi_params;
   }
 
@@ -65,33 +84,25 @@ sudo cat >> /var/www/info.php <<'EOF'
 <?php phpinfo(); ?>
 EOF
 
-echo ">>> Installing base packages"
-sudo apt-get install  -q -y -f vim curl python-software-properties unzip git-all
 
-sudo locale-gen UTF-8
-sudo dpkg-reconfigure locales
-
-echo ">>> Installing node.js"
-sudo apt-get install  -q -y -f  python g++ make
-sudo add-apt-repository  -q -y -f  ppa:chris-lea/node.js
+echo "========= Adding Node ========="
+curl --silent --location https://deb.nodesource.com/setup_4.x | sudo bash -
+sudo apt-get install -y nodejs
 sudo apt-get update
-sudo apt-get install  -q -y -f   nodejs
 
-echo ">>> Installing NPM, Grunt CLI and Bower"
-curl -s https://npmjs.org/install.sh | sh
-sudo npm install -g grunt-cli bower
+echo "========= Git ========="
+sudo apt-get install -y git
 
-echo ">>> Installing Composer"
-curl -sS https://getcomposer.org/installer | php
-sudo mv composer.phar /usr/local/bin/composer
+echo "======== Composer ========"
+#install into /usr/local/bin so we can use composer instead of bin/composer or composer.phar
+curl -sS https://getcomposer.org/installer | sudo php -- --install-dir=/usr/local/bin --filename=composer
 
-echo ">>> Installing Gitify"
+echo "======== Gitify ========"
 git clone https://github.com/modmore/Gitify.git Gitify
 cd Gitify
 composer install
 chmod +x Gitify
-echo "export PATH=~/Gitify/:$PATH" | bash
+echo "PATH=~/Gitify/:$PATH" >> ~/.bashrc
 
-sudo service nginx restart
-
-sudo service php5-fpm restart
+sudo apt-get upgrade
+sudo apt-get update
